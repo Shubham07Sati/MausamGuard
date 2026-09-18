@@ -3,120 +3,135 @@ import pandas as pd
 import numpy as np
 import pydeck as pdk
 from inference import run_inference
-import matplotlib.pyplot as plt
+from synthetic_gfs import generate_synthetic_operational_data
+from config import Config
+import os
 import datetime
+import altair as alt
 
 st.set_page_config(page_title="MausamGuard | SIH 2026", layout="wide")
 
 st.title("🌩️ MausamGuard: AI Forecast Bust Predictor")
-st.markdown("Predicting when physical weather models (GFS) will fail during extreme events.")
+st.markdown(f"**Operational Mode:** `{Config.MODE}` | Predicting when physical weather models (GFS) will fail.")
 
 # --- Sidebar Controls ---
 st.sidebar.header("Controls")
-selected_date = st.sidebar.date_input("Forecast Date", datetime.date(2026, 9, 20))
+selected_date = st.sidebar.date_input("Forecast Initialization", datetime.date(2023, 7, 6))
 lead_time = st.sidebar.slider("Lead Time (Days)", 1, 10, 5)
 
 # --- Generate/Load Data ---
 @st.cache_data
 def get_inference_data():
-    """Generates a mock raw forecast and runs it through our ML inference pipeline."""
-    # Generate a dense grid for India
-    lats = np.arange(8.0, 38.0, 0.5)
-    lons = np.arange(68.0, 98.0, 0.5)
+    """Runs the ML inference pipeline. Uses Config.MODE to determine data source."""
+    if Config.MODE == "DEMO":
+        # Check if synthetic data exists, if not generate it
+        if not os.path.exists(f"{Config.DATA_DIR}/synthetic_merged_data.parquet"):
+            generate_synthetic_operational_data()
+        
+        # Load the synthetic raw data
+        raw_df = pd.read_parquet(f"{Config.DATA_DIR}/synthetic_merged_data.parquet")
+    else:
+        # Load real data
+        raw_df = pd.read_parquet(f"{Config.DATA_DIR}/real_merged_data.parquet")
     
-    records = []
-    # Just generating for the selected date and lead time to save time
-    for lat in lats:
-        for lon in lons:
-            records.append({
-                "Date": pd.to_datetime("2026-09-20"),
-                "Lead_Time": 5,
-                "Lat": lat,
-                "Lon": lon,
-                "GFS_T2m": np.random.uniform(25, 35),
-                "GFS_TP": np.random.uniform(0, 50),
-                "GFS_Z500": np.random.uniform(5700, 5900)
-            })
-    
-    raw_df = pd.DataFrame(records)
     # Run the ML model (from inference.py)
     try:
         results = run_inference(raw_df)
-        # Add a mock "hotspot" (storm/cyclone) in the Bay of Bengal / East Coast
-        # to make the map look interesting for the demo
-        hotspot_mask = (results['Lat'] > 15) & (results['Lat'] < 22) & (results['Lon'] > 85) & (results['Lon'] < 92)
-        results.loc[hotspot_mask, 'Bust_Probability'] = np.random.uniform(0.7, 0.95, size=hotspot_mask.sum())
-        
-        # Add another hotspot in the Himalayas (Western Disturbance)
-        hotspot_mask2 = (results['Lat'] > 30) & (results['Lat'] < 36) & (results['Lon'] > 74) & (results['Lon'] < 80)
-        results.loc[hotspot_mask2, 'Bust_Probability'] = np.random.uniform(0.6, 0.85, size=hotspot_mask2.sum())
-        
-        return results
+        return results, raw_df
     except Exception as e:
         st.error(f"Inference Error: {e}")
-        return pd.DataFrame()
+        return pd.DataFrame(), pd.DataFrame()
 
 with st.spinner("Running AI Inference..."):
-    df = get_inference_data()
+    results_df, raw_df = get_inference_data()
 
-if not df.empty:
-    col1, col2 = st.columns([2, 1])
+if not results_df.empty:
+    # Filter for the selected date and lead time
+    # Convert date to string or datetime to match
+    mask = (pd.to_datetime(results_df['Date']).dt.date == selected_date) & (results_df['Lead_Time'] == lead_time)
+    display_df = results_df[mask]
     
-    with col1:
-        st.subheader(f"Confidence Map - Day {lead_time}")
+    if display_df.empty:
+        st.warning(f"No data available for Lead Time Day {lead_time} on {selected_date}.")
+    else:
+        col1, col2 = st.columns([2, 1])
         
-        # Define the color scale based on probability
-        # Red = High Bust Prob, Blue = Low Bust Prob
-        df['color_r'] = (df['Bust_Probability'] * 255).astype(int)
-        df['color_g'] = 0
-        df['color_b'] = ((1 - df['Bust_Probability']) * 255).astype(int)
-        
-        # PyDeck Heatmap/Grid
-        layer = pdk.Layer(
-            "ColumnLayer",
-            df,
-            get_position=["Lon", "Lat"],
-            get_elevation="Bust_Probability",
-            elevation_scale=100000,
-            radius=20000,
-            get_fill_color=["color_r", "color_g", "color_b", 150],
-            pickable=True,
-            auto_highlight=True,
-        )
-        
-        view_state = pdk.ViewState(
-            latitude=23.0,
-            longitude=80.0,
-            zoom=3.5,
-            pitch=45,
-        )
-        
-        r = pdk.Deck(
-            layers=[layer],
-            initial_view_state=view_state,
-            tooltip={"text": "Lat: {Lat}, Lon: {Lon}\nBust Probability: {Bust_Probability}"},
-            map_style='mapbox://styles/mapbox/dark-v10',
-        )
-        st.pydeck_chart(r)
-        
-    with col2:
-        st.subheader("Regional Analysis")
-        st.info("Hover over the map columns to see specific grid probabilities.")
-        
-        # Find the max risk area
-        max_risk = df.loc[df['Bust_Probability'].idxmax()]
-        
-        st.error(f"⚠️ **Highest Risk Region Detected**")
-        st.markdown(f"**Coordinates:** {max_risk['Lat']}°N, {max_risk['Lon']}°E")
-        st.markdown(f"**Bust Probability:** {max_risk['Bust_Probability'] * 100:.1f}%")
-        
-        st.markdown("### AI Explainability")
-        st.markdown("*Why is the model flagging this region?*")
-        
-        # Mock SHAP breakdown for the dashboard
-        st.progress(0.45, text="High Z500 Spatial Gradient (+45%)")
-        st.progress(0.30, text="Temporal Inconsistency (+30%)")
-        st.progress(0.12, text="Climatological Anomaly (+12%)")
-        
-        st.markdown("---")
-        st.markdown("**Recommendation:** Disaster Response forces in this region should prepare for scenarios outside the standard GFS forecast envelope.")
+        with col1:
+            st.subheader(f"Confidence Map - Day {lead_time}")
+            
+            # Color scale
+            display_df['color_r'] = (display_df['Bust_Probability'] * 255).astype(int)
+            display_df['color_g'] = 0
+            display_df['color_b'] = ((1 - display_df['Bust_Probability']) * 255).astype(int)
+            
+            layer = pdk.Layer(
+                "ColumnLayer",
+                display_df,
+                get_position=["Lon", "Lat"],
+                get_elevation="Bust_Probability",
+                elevation_scale=100000,
+                radius=20000,
+                get_fill_color=["color_r", "color_g", "color_b", 150],
+                pickable=True,
+                auto_highlight=True,
+            )
+            
+            view_state = pdk.ViewState(
+                latitude=23.0,
+                longitude=80.0,
+                zoom=3.5,
+                pitch=45,
+            )
+            
+            r = pdk.Deck(
+                layers=[layer],
+                initial_view_state=view_state,
+                tooltip={"text": "Lat: {Lat}, Lon: {Lon}\nRisk: {Risk_Level} ({Bust_Probability})"},
+                map_style='mapbox://styles/mapbox/dark-v10',
+            )
+            st.pydeck_chart(r)
+            
+            st.markdown("---")
+            st.subheader("Forecast vs Observation (Ground Truth Comparison)")
+            # Show a time-series for the highest risk point
+            max_risk = display_df.loc[display_df['Bust_Probability'].idxmax()]
+            ts_mask = (raw_df['Lat'] == max_risk['Lat']) & (raw_df['Lon'] == max_risk['Lon']) & (raw_df['Lead_Time'] == lead_time)
+            ts_data = raw_df[ts_mask].sort_values('Date')
+            
+            chart_data = ts_data[['Date', 'GFS_T2m', 'ERA5_T2m']].melt('Date', var_name='Source', value_name='Temperature (C)')
+            chart = alt.Chart(chart_data).mark_line(point=True).encode(
+                x='Date:T',
+                y=alt.Y('Temperature (C):Q', scale=alt.Scale(zero=False)),
+                color='Source:N',
+                tooltip=['Date', 'Source', 'Temperature (C)']
+            ).interactive()
+            st.altair_chart(chart, use_container_width=True)
+            
+        with col2:
+            st.subheader("Regional Analysis")
+            st.info("Showing AI analysis for the highest risk region on this day.")
+            
+            st.error(f"⚠️ **Highest Risk Region Detected**")
+            st.markdown(f"**Coordinates:** {max_risk['Lat']}°N, {max_risk['Lon']}°E")
+            st.markdown(f"**Bust Probability:** {max_risk['Bust_Probability'] * 100:.1f}%")
+            
+            st.markdown("### AI Explainability")
+            st.markdown("*Real SHAP values driving the prediction:*")
+            
+            # Normalize SHAP values for display (make them absolute percentages of total impact)
+            shap_cols = ['SHAP_Z500_Grad', 'SHAP_Temporal_Delta', 'SHAP_Climatology']
+            total_shap = abs(max_risk[shap_cols[0]]) + abs(max_risk[shap_cols[1]]) + abs(max_risk[shap_cols[2]]) + 0.0001
+            
+            grad_pct = abs(max_risk['SHAP_Z500_Grad']) / total_shap
+            temp_pct = abs(max_risk['SHAP_Temporal_Delta']) / total_shap
+            clim_pct = abs(max_risk['SHAP_Climatology']) / total_shap
+            
+            st.progress(float(grad_pct), text=f"Z500 Spatial Gradient Impact ({grad_pct*100:.0f}%)")
+            st.progress(float(temp_pct), text=f"Temporal Inconsistency Impact ({temp_pct*100:.0f}%)")
+            st.progress(float(clim_pct), text=f"Climatological Anomaly Impact ({clim_pct*100:.0f}%)")
+            
+            st.markdown("---")
+            if max_risk['Bust_Probability'] > 0.7:
+                st.markdown("**Recommendation:** Disaster Response forces in this region should prepare for scenarios outside the standard GFS forecast envelope.")
+            else:
+                st.markdown("**Recommendation:** GFS model is behaving normally. Standard operational procedures apply.")
