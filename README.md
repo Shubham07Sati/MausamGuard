@@ -1,4 +1,4 @@
-# AI Forecast Bust Detection — SIH 2026
+# MausamGuard
 > **Team:** Person A (ML) + Person B (Data/Geo)  
 > **Problem:** Detect when the GFS numerical weather prediction model makes catastrophically wrong forecasts over India  
 > **Approach:** LightGBM binary classifier trained on (GFS forecast, ERA5 reanalysis) error statistics
