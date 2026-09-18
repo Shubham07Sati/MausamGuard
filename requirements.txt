@@ -1,0 +1,47 @@
+# ─── Core Scientific Stack ───────────────────────────────────────────
+numpy>=1.26,<2.0
+pandas>=2.1
+scipy>=1.11
+
+# ─── Geospatial / NetCDF ─────────────────────────────────────────────
+xarray>=2024.1
+netCDF4>=1.6
+h5netcdf>=1.3
+dask[complete]>=2024.1
+zarr>=2.16
+
+# ─── Data Download APIs ───────────────────────────────────────────────
+cdsapi>=0.7                    # Copernicus CDS (ERA5)
+requests>=2.31
+boto3>=1.34                    # AWS S3 (GFS via NOAA Open Data)
+
+# ─── File I/O ─────────────────────────────────────────────────────────
+pyarrow>=14.0
+fastparquet>=2023.10
+eccodes>=1.6                   # GRIB decode (GFS native format)
+cfgrib>=0.9.12                 # xarray GRIB engine
+
+# ─── ML / Modelling ───────────────────────────────────────────────────
+lightgbm>=4.3
+scikit-learn>=1.4
+imbalanced-learn>=0.12
+shap>=0.45
+
+# ─── Backend API ──────────────────────────────────────────────────────
+fastapi>=0.111
+uvicorn[standard]>=0.29
+pydantic>=2.7
+
+# ─── Frontend ─────────────────────────────────────────────────────────
+streamlit>=1.35
+pydeck>=0.9
+plotly>=5.21
+folium>=0.16
+streamlit-folium>=0.20
+
+# ─── Utilities ────────────────────────────────────────────────────────
+tqdm>=4.66
+loguru>=0.7
+python-dotenv>=1.0
+joblib>=1.4
+click>=8.1

@@ -1,0 +1,47 @@
+# ── Data (large files, never commit) ─────────────────────────────────
+# Ignore actual data files but keep README placeholders
+data/raw/**/*
+data/processed/**/*
+data/interim/**/*
+# Allow the placeholder READMEs
+!data/raw/era5/
+!data/raw/gfs/
+!data/raw/era5/README.md
+!data/raw/gfs/README.md
+!data/processed/README.md
+!data/interim/README.md
+
+# ── Model artifacts ───────────────────────────────────────────────────
+models/
+*.pkl
+*.joblib
+
+# ── Logs ──────────────────────────────────────────────────────────────
+logs/
+*.log
+
+# ── Python ────────────────────────────────────────────────────────────
+__pycache__/
+*.py[cod]
+*.egg-info/
+.eggs/
+dist/
+build/
+*.egg
+.venv/
+venv/
+env/
+.env
+
+# ── Jupyter ───────────────────────────────────────────────────────────
+.ipynb_checkpoints/
+*.ipynb
+
+# ── OS / IDE ──────────────────────────────────────────────────────────
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+
+# ── CDS API key (NEVER commit) ────────────────────────────────────────
+.cdsapirc
