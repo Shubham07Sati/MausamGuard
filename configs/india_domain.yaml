@@ -1,0 +1,108 @@
+# ─────────────────────────────────────────────────────────────
+# India Bounding Box & Domain Configuration
+# ─────────────────────────────────────────────────────────────
+domain:
+  name: "India"
+  # North / West / South / East  (ERA5 CDS API order)
+  lat_north: 37.0
+  lat_south: 6.0
+  lon_west:  66.0
+  lon_east:  98.0
+  # Grid resolution in degrees (0.25° native for ERA5 & GFS)
+  resolution: 0.25
+
+# ─────────────────────────────────────────────────────────────
+# Time Periods
+# ─────────────────────────────────────────────────────────────
+periods:
+  training:
+    start: "2019-01-01"
+    end:   "2022-12-31"
+  validation:
+    start: "2023-01-01"
+    end:   "2023-06-30"
+  test:
+    start: "2023-07-01"
+    end:   "2023-12-31"
+
+seasons:
+  monsoon:
+    months: [6, 7, 8, 9]   # June – September
+    label: "JJAS"
+  winter:
+    months: [12, 1, 2]     # December – February
+    label: "DJF"
+
+# ─────────────────────────────────────────────────────────────
+# Variables
+# ─────────────────────────────────────────────────────────────
+variables:
+  era5:
+    - short_name: "t2m"
+      long_name: "2 metre temperature"
+      cds_name: "2m_temperature"
+      units: "K"
+    - short_name: "tp"
+      long_name: "Total precipitation"
+      cds_name: "total_precipitation"
+      units: "m"
+    - short_name: "z500"
+      long_name: "Geopotential at 500 hPa"
+      cds_name: "geopotential"
+      pressure_level: 500
+      units: "m2/s2"
+    - short_name: "msl"
+      long_name: "Mean sea level pressure"
+      cds_name: "mean_sea_level_pressure"
+      units: "Pa"
+    - short_name: "u10"
+      long_name: "10 metre U wind component"
+      cds_name: "10m_u_component_of_wind"
+      units: "m/s"
+    - short_name: "v10"
+      long_name: "10 metre V wind component"
+      cds_name: "10m_v_component_of_wind"
+      units: "m/s"
+
+  gfs:
+    # GFS GRIB2 filter variable names
+    - short_name: "TMP_2m"
+      grib_typeOfLevel: "heightAboveGround"
+      grib_level: 2
+      grib_shortName: "2t"
+    - short_name: "APCP_sfc"
+      grib_typeOfLevel: "surface"
+      grib_shortName: "tp"
+    - short_name: "HGT_500"
+      grib_typeOfLevel: "isobaricInhPa"
+      grib_level: 500
+      grib_shortName: "gh"
+    - short_name: "PRMSL"
+      grib_typeOfLevel: "meanSea"
+      grib_shortName: "prmsl"
+
+# ─────────────────────────────────────────────────────────────
+# Lead Times
+# ─────────────────────────────────────────────────────────────
+lead_times:
+  min_hours: 24    # Day 1
+  max_hours: 240   # Day 10
+  step_hours: 24
+
+# ─────────────────────────────────────────────────────────────
+# Bust Detection
+# ─────────────────────────────────────────────────────────────
+bust:
+  percentile_threshold: 90    # 90th percentile of errors = bust
+  min_samples_per_cell: 30    # Min samples needed to compute tau
+
+# ─────────────────────────────────────────────────────────────
+# Paths  (relative to project root)
+# ─────────────────────────────────────────────────────────────
+paths:
+  raw_era5:     "data/raw/era5"
+  raw_gfs:      "data/raw/gfs"
+  interim:      "data/interim"
+  processed:    "data/processed"
+  logs:         "logs"
+  models:       "models"
