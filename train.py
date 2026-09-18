@@ -46,16 +46,27 @@ def train_model():
     print(f"Test set: {len(X_test)} samples")
     print(f"Class distribution in train: \n{y_train.value_counts(normalize=True)}")
     
-    # Train LightGBM Model
-    # is_unbalance=True helps with the fact that busts (1) are rare (~10%)
-    model = lgb.LGBMClassifier(
-        n_estimators=100,
-        learning_rate=0.05,
-        is_unbalance=True,
-        random_state=42
-    )
+    import json
     
+    # Base parameters
+    params = {
+        'n_estimators': 100,
+        'learning_rate': 0.05,
+        'is_unbalance': True,
+        'random_state': 42
+    }
+    
+    # Try to load optimized parameters
+    try:
+        with open("models/best_lgbm_params.json", "r") as f:
+            best_params = json.load(f)
+            params.update(best_params)
+            print("Loaded optimized hyperparameters from tune.py")
+    except FileNotFoundError:
+        print("No optimized params found. Using defaults.")
+
     print("\nTraining LightGBM model...")
+    model = lgb.LGBMClassifier(**params)
     model.fit(X_train, y_train)
     
     # Evaluation
