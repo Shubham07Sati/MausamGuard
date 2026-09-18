@@ -45,3 +45,4 @@ Thumbs.db
 
 # ── CDS API key (NEVER commit) ────────────────────────────────────────
 .cdsapirc
+plots/
